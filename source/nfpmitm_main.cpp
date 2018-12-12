@@ -32,13 +32,14 @@ extern "C" {
 
     u32 __nx_applet_type = AppletType_None;
 
-    #define INNER_HEAP_SIZE 0x20000
+    #define INNER_HEAP_SIZE 0x30000
     size_t nx_inner_heap_size = INNER_HEAP_SIZE;
     char   nx_inner_heap[INNER_HEAP_SIZE];
     
     void __libnx_initheap(void);
     void __appInit(void);
     void __appExit(void);
+    void __libnx_exception_handler(ThreadExceptionDump *ctx);
 }
 
 
@@ -82,6 +83,12 @@ void __appExit(void) {
     smExit();
 }
 
+void __libnx_exception_handler(ThreadExceptionDump *ctx) {
+    //fprintf(g_logging_file, "An exception occurred!\n");
+    //fflush(g_logging_file);
+    RebootToRcm();
+}
+
 struct NfpUserManagerOptions {
     static const size_t PointerBufferSize = 0x100;
     static const size_t MaxDomains = 4;
@@ -107,37 +114,27 @@ void HidLoop(void* arg) {
             fflush(g_logging_file);
             g_key_combo_triggered = true;
             g_activate_event->Signal();
-            // RebootToRcm();
+            RebootToRcm();
         }
         
         hidExit();
 
-        svcSleepThread(100000000);
+        svcSleepThread(100000000UL);
     }
-    svcExitThread();
 }
 
 int main(int argc, char **argv) {
-    g_logging_file = fopen("nfp_log.log", "a");
-
-    g_activate_event = CreateWriteOnlySystemEvent<true>();
-
-    Thread hid_poller_thread = {0};
     consoleDebugInit(debugDevice_SVC);
     
-    if (R_FAILED(threadCreate(&hid_poller_thread, &HidLoop, NULL, 0x4000, 0x15, -2))) {
-        fatalSimple(MAKERESULT(Module_Libnx, 40));
-        return -1;
-    }
-    if (R_FAILED(threadStart(&hid_poller_thread))) {
-        fatalSimple(MAKERESULT(Module_Libnx, 41));
-        return -1;
-    }
-        
-    /* TODO: What's a good timeout value to use here? */
+    g_logging_file = fopen("nfp_log.log", "a");
+    g_activate_event = CreateWriteOnlySystemEvent<true>();
+    
+    HosThread hid_poller_thread;
+    hid_poller_thread.Initialize(&HidLoop, nullptr, 0x4000, 0x15);
+    hid_poller_thread.Start();
+    
+    /* Create server manager. */
     auto server_manager = new NfpMitmManager(1);
-        
-    /* Create fsp-srv mitm. */
     AddMitmServerToManager<NfpUserMitmService>(server_manager, "nfp:user", 4);
 
     /* Loop forever, servicing our services. */

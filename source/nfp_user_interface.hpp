@@ -49,15 +49,15 @@ enum NfpUserInterfaceCmd : u32 {
 };
 
 struct TagInfo {
-    std::array<u8, 10> uuid;
+    u8 uuid[10];
     u8 uuid_length; // TODO(ogniK): Figure out if this is actual the uuid length or does it
                     // mean something else
     u8 pad1[0x15];
     u32 protocol;
     u32 tag_type;
-    u8 pad2[0x2c];
+    u8 pad2[0x30];
 };
-static_assert(sizeof(TagInfo) == 0x54, "TagInfo is an invalid size");
+static_assert(sizeof(TagInfo) == 0x58, "TagInfo is an invalid size");
 
 struct RegisterInfo {
     std::array<u8, 0x100> data; /* TODO: Struct layout */
@@ -76,7 +76,7 @@ struct CommonInfo {
 static_assert(sizeof(CommonInfo) == 0x40, "CommonInfo is an invalid size");
 
 struct ModelInfo {
-    std::array<u8, 0x8> amiibo_identification_block;
+    u8 amiibo_identification_block[0x8];
     u8 padding[0x38];
 };
 static_assert(sizeof(ModelInfo) == 0x40, "ModelInfo is an invalid size");
@@ -102,12 +102,15 @@ class NfpUserInterface : public IServiceObject {
     public:
         NfpUserInterface(NfpUser *u);
         ~NfpUserInterface();
+
+        void SetDeviceState(DeviceState _state);
+        void SetState(State _state);
         
     private:
         /* Actual command API. */
-        virtual Result Initialize(u64 aruid, PidDescriptor pid_desc, InBuffer<u8> buf) final;
+        virtual Result Initialize(u64 aruid, u64 unk, PidDescriptor pid_desc, InBuffer<u8> buf) final;
         virtual Result Finalize() final;
-        virtual Result ListDevices(OutPointerWithClientSize<u64> out_devices, Out<u32> out_count) final;
+        virtual Result ListDevices(OutPointerWithClientSize<u64> out_devices, Out<u64> out_count) final;
         virtual Result StartDetection(u64 handle) final;
         virtual Result StopDetection(u64 handle) final;
         virtual Result Mount(u64 handle, u32 type, u32 target) final;
@@ -132,8 +135,8 @@ class NfpUserInterface : public IServiceObject {
         virtual Result RecreateApplicationArea(u64 handle, u32 access_id, InBuffer<u8> area) final;
 
         bool has_attached_handle{};
-        const u64 device_handle{0x555A5559}; // 'YUZU'
-        const u32 npad_id{0}; // Player 1 controller
+        const u64 device_handle{0x20}; // 'YUZU'
+        const u32 npad_id{0x20}; // Player 1 controller
         State state{State::NonInitialized};
         DeviceState device_state{DeviceState::Initialized};
         IEvent* deactivate_event;

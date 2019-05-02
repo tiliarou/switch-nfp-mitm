@@ -21,10 +21,8 @@ TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data
-INCLUDES	:=	include ../../common/include
+INCLUDES	:=	include
 EXEFS_SRC	:=	exefs_src
-
-DEFINES	:=	-DDISABLE_IPC
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -47,7 +45,7 @@ LIBS	:= -lstratosphere -lnx
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/../include/libstratosphere
+LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/libstratosphere
 
 
 #---------------------------------------------------------------------------------
@@ -116,6 +114,8 @@ all: $(BUILD)
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@rm -rf f:/atmosphere/titles/0100000000000352/exefs.nsp
+	@cp $(OUTPUT).nsp f:/atmosphere/titles/0100000000000352/exefs.nsp
 
 #---------------------------------------------------------------------------------
 clean:

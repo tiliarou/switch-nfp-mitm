@@ -1,57 +1,118 @@
-![Logo](emuiibo.png)
+![Logo](emutool/PcIcon.png)
 
 # emuiibo
 
-> Custom process MitM'ing `nfp:user` services for amiibo emulation (my custom but really extended fork of `nfp-mitm`)
+> Virtual amiibo (amiibo emulation) system for Nintendo Switch
+
+# Table of contents
+
+1. [Usage](#usage)
+2. [Controlling emuiibo](#controlling-emuiibo)
+3. [Virtual amiibo creation](#virtual-amiibo-creation)
+4. [Important notes](#important-notes)
+5. [For developers](#for-developers)
+6. [Credits](#credits)
 
 ## Usage
 
-Download the latest release and place it on your CFW's `titles` folder (so it would be like `<cfw>/titles/0100000000000352`).
+Build or download the latest release of emuiibo and extract the contents of 'SdOut' directory (inside 'emuiibo-v*.zip') in the root of your SD card.
 
-According to tests, should work on any CFW which allows NSP sysmodules (Atmosphere, ReiNX).
+emuiibo comes bundled with a Tesla overlay to control it quite easily.
 
-You also have to set the boot2 flag, whose location depends on the CFW:
+For more detailed information of how to use emuiibo, check [the usage wiki](Usage.md).
 
-- Atmosphere: create a file named `boot2.flag` inside `titles/0100000000000352/flags` directory.
+### SD layout
 
-- ReiNX: create a file named `boot2.flag` inside `titles/0100000000000352` directory.
+- Emuiibo's directory is `sd:/emuiibo`.
 
-### Combos
+- Virtual amiibos go inside `sd:/emuiibo/amiibo`. For instance, an amiibo named `MyMario` would be `sd:/emuiibo/amiibo/MyMario/<amiibo content>`.
 
-All the input combos are performed with R-Stick pressing and pressing the D-pad in an specific direction (at the same time). Combos must (should) be done before or after the game starts looking for amiibos.
+- However, categories are supported by placing amiibos inside sub-directories (only inside a directory, like 3DS menu categories inside categories are not supported) - for instance: `sd:/emuiibo/amiibo/SSBU/Yoshi` would be a `Yoshi` amiibo inside `SSBU` category.
 
-- **Toggle amiibo emulation**: Press R-Stick (like it was a button) and also pressing the D-pad up. Toggles/untoggles emulation.
+- A virtual amiibo is detected by emuiibo based on two aspects: a `amiibo.json` and a `amiibo.flag` fioe must exist inside the virtual amiibo's folder mentioned above. If you would like to disable a virtual amiibo from being recognised by emuiibo, just remove the flag file, and create it again to enable it.
 
-- **Toggle amiibo emulation once**: Same as above, but pressing the D-pad right. Toggles emulation once, after emulating an amiibo then it will untoggle automatically.
+- Every time the console is booted, emuiibo saves all the miis inside the console to the SD card. Format is `sd:/emuiibo/miis/<index> - <name>/mii-charinfo.bin`.
 
-- **Untoggle amiibo emulation**: Same as above, but pressing the D-pad down. Untoggles amiibo emulation, and should be used as a way to fully ensure it is untoggled, in case you don't know whether it's toggled or not.
+## Controlling emuiibo
 
-- **Swap amiibo**: Same as above, but pressing the D-pad left. Moves to the next amiibo in the amiibo directory, if last one starts again with the first one. Only has effect if amiibo emulation is toggled.
+- **Emulation status (on/off)**: when emuiibo's emulation status is on, it means that any game trying to access/read amiibos will be intercepted by emuiibo. When it's off, it means that amiibo services will work normally, and nothing will be intercepted. This is basically a toggle to globally disable or enable amiibo emulation.
 
-Emuiibo's amiibo directory is `sd:/emuiibo`. Place your amiibo dumps (must be `*.bin` files) there.
+- **Active virtual amiibo**: it's the amiibo which will be sent to the games which try to scan amiibos, if emulation is on. Via tools such as the overlay or Goldleaf, one can change the active virtual amiibo.
 
-### Amiibo emulation
+- **Virtual amiibo status (connected/disconnected)**: when the active virtual amiibo is connected, it means that the amiibo is always "placed", as if you were holding a real amiibo on the NFC point and never moving it - the game always detects it. When it is disconnected, it means that you "removed" it, as if you just removed the amiibo from the NFC point. Some games might ask you to remove the amiibo after saving data, so you must disconnect the virtual amiibo to "simulate" that removal. This is a new feature in v0.5, which fixed errors, since emuiibo tried to handle this automatically in previous versions, causing some games to fail.
 
-Emuiibo gets amiibo's data, but the register info (amiibo name, write dates, mii) is auto-generated, as it isn't present on amiibo dumps:
+All this aspects can be seen/controlled via the overlay.
 
-- Name will be the file's name (`Amiibo.bin` -> `Amiibo`), but if the name is bigger than 10 chars it will be hardcoded to `Emuiibo`.
+## Virtual amiibo creation
 
-- Write date is hardcoded to 15th June 2019.
+Emuiibo no longer requires raw BIN dumps (but allows them) to emulate amiibos. Instead, you can use `emutool` PC tool in order to generate virtual amiibos.
 
-- The amiibo's mii (owner) is hardcoded to the first mii found in the console mii database.
+![Screenshot](emutool/Screenshot.png)
 
-### Amiibo dumps
+## For developers
 
-Dumps consist on `*.bin` files, which must be 540 bytes (perhaps even more?). They can be dumped with several tools.
+emuiibo also hosts a custom service, `nfp:emu`, which can be used to control amiibo emulation by IPC commands.
 
-### For developers
+NOTE: this service has completely changed for v0.5, so any kind of tool made to control emuiibo for lower versions should be updated, since it will definitely not work fine.
 
-This MitM process also hosts a custom service, `nfp:emu`, which can be used to control amiibo swapping and emulation by IPC.
+There are two examples for the usage of this services: `emuiibo-example`, which is a quick but useful CLI emuiibo manager, and the overlay we provide.
 
-You have an implementation for C/C++ and libnx in [here](nfpemu-libnx).
+## Amiibo format
+
+Amiibos are, as stated above, directories with an `amiibo.json` and an `amiibo.flag` file. The flag is mainly there in case people would like to disable an amiibo and then re-enable it later.
+
+The JSON file contains all the aspects and data an amiibo needs to provide to games, except a few aspects (per-game savedata, protocol and tag type...)
+
+This are the properties an amiibo has:
+
+- Name: the amiibo's name (max. 40 characters)
+
+- UUID: it's a unique identifier for the amiibo, composed of 10 bytes. If the "uuid" field is not present in the JSON, emuiibo will randomize the UUID everytime amiibo data is sent to a game. This has potential benefits in certain games, like in BOTW, where amiibos can only be used once per day, but with randomized UUIDs this can be bypassed, and one can get infinite rewards scanning this amiibo infinite times.
+
+- Mii: every amiibo has a mii associated with it (it's "owner"). Internally, miis consist on a 88-byte structure known as "charinfo", so emuiibo stores this data in a file (typically `mii-charinfo.bin`). For new amiibos, emuiibo uses the console's services to generate a random mii, but for those who would like to use a mii from their console, emuiibo dumps in `miis` directory the console's miis, so it's just a matter of copying and pasting/replacing charinfo bin files. *NOTE*: emuiibo contains the charinfo file's name in the JSON (`mii_charinfo_file`), so if the file ever gets renamed, don't forget to rename it in the JSON too, or emuiibo will generate a random mii for the file name in the JSON.
+
+- First and last write dates: these are (as if it wasn't obvious) the first and last time the amiibo was written/modified. When a virtual amiibo is created with emutool, the current date is assigned to both dates, and when the amiibo is modified in console, emuiibo updates the last write date.
+
+- Write counter: this is a number which is increased everytime the amiibo is modified (and emuiibo does so, imitating Nintendo), but when the number reaches 65535, it is no longer increased (the number is technically a 16-bit number)
+
+- Version: this value technically represents the version of Nintendo's amiibo library (NFP), so emuiibo just defaults it to 0.
+
+### Areas
+
+Areas (application areas, technically) are per-game amiibo savedata. Technically, real amiibos can only save data for a single game, but emuiibo allows as many games as you want (since savedata is stored as files). This savedata is quite small, and tends to be 216 bytes or smaller.
+
+emuiibo saves this data inside bin files at `areas` directory inside the amiibo's directory, and the bin file's name is the game's area access ID in hex format.
+
+An access ID is a unique ID/number each game has for amiibo savedata, used to check if the game actually has savedata in an amiibo. Here's a list of games and their access IDs:
+
+### Per-game access IDs
+
+- Super Smash Bros. Ultimate: 0x34F80200
+
+- Splatoon 2: 0x10162B00
+
+- Breath of the Wild: 0x1019C800
+
+**NOTE**: if anyone is willing to make savedata editors for this amiibo saves, I'm pretty sure it would be extremely helpful for many users.
 
 ## Credits
 
-- All the persons who contributed to the `nfp-mitm` project before me: *Subv, ogniK, averne, spx01, SciresM*
+- Everyone who contributed to the original **nfp-mitm** project (forks): *Subv, ogniK, averne, spx01, SciresM*
 
-- libstratosphere libraries (SciresM again)
+- **libstratosphere** project and libraries
+
+- **AmiiboAPI** web API, which is used by `emutool` to get a proper, full amiibo list, in order to generate virtual amiibos.
+
+- [**3DBrew**](https://www.3dbrew.org/wiki/Amiibo) for their detailed documentation of amiibos, even though some aspects are different on the Switch.
+
+- **LoOkYe** for writing emuiibo's wiki and helping with support.
+
+- **AD2076** for helping with the tesla overlay.
+
+- **Thog** / **Ryujinx** devs for reversing mii services and various of its types.
+
+- **Citra** devs for several amiibo formats used in 3DS systems.
+
+- **Manlibear** for helping with improvements and development of `emutool`.
+
+- All the testers and supporters from my Discord server who were essential for making this project progress and become what it is now :)
